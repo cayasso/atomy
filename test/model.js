@@ -355,7 +355,7 @@ describe('Atomy.Model', function () {
 			});
 		});
 
-		describe('Model: id', function () {
+		describe('Model: iD', function () {
 			it('should get the correct id only', function () {
 				var Task = Atomy.Model.extend('Task', {
 						schema: ['a'],
@@ -365,14 +365,14 @@ describe('Atomy.Model', function () {
 					}, true);
 				Task.create({ a: 'a' }, function (res) {
 					var task = res.body;
-					expect(Task.id(task.id).a).to.be('a');
+					expect(Task.iD(task.id).a).to.be('a');
 				});
 			});
 			it('should output null when record is not found', function () {
 				var Task = Atomy.Model.extend('Task', {
 					}, true);
-				expect(Task.id('')).to.be(null);
-				expect(Task.id('invalid-id')).to.be(null);
+				expect(Task.iD('')).to.be(null);
+				expect(Task.iD('invalid-id')).to.be(null);
 			});
 		});
 
@@ -388,7 +388,6 @@ describe('Atomy.Model', function () {
 				Task.create({ a: 'a' }, function (res) {
 					var task = res.body;
 					task.on('change', function (ev) {
-						//alert('hola' + ev);
 						expect(ev).to.be('update');
 					});
 

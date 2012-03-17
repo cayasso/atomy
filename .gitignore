@@ -1,4 +1,5 @@
 *.png
 node_modules
+.DS_Store
 atomy.sublime-project
 atomy.sublime-workspace
