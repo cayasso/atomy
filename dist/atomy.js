@@ -1,5 +1,5 @@
 /*!
- * atomy - v0.1.1 -  3/13/2012
+ * atomy - v0.1.4 -  3/22/2012
  *
  * https://github.com/cayasso/atomy
  * Copyright (c) 2012 Jonathan Brumley <cayasso@gmail.com>
@@ -9,6 +9,8 @@
 
 (function (window, document, undefined) {
 
+	"use strict";
+	
 	// Constants
 	var root = this,
 		Atomy,
@@ -45,7 +47,7 @@
 	}
 
 	// Current version
-	Atomy.VERSION = '0.1.1';
+	Atomy.VERSION = '0.1.4';
 
 	// Set underscore
 	var _ = root._, request = superagent;
@@ -53,7 +55,7 @@
 	if (!request && (typeof require !== 'undefined')) { request = require('superagent'); }
 
 	Class.instances = {};
-	Class.extend = function (className, klass, proto) {
+	Class.extend = function extend(className, klass, proto) {
 		var prototype,
 			_superclass = this,
 			_super = this.prototype;
@@ -95,7 +97,7 @@
 					this._className = className;
 					this._class = this.constructor;
 					this.constructor._name = className.toLowerCase();
-					return this.init.apply(this, (args && args.callee) ? args : arguments);
+					return this.init.apply(this, (args && Class) ? args : arguments);
 				}
 			} else {
 				return new Class(arguments);
@@ -115,7 +117,7 @@
 		Class = setProps(klass, Class, _superclass);
 
 		// And make this class extendable
-		Class.extend = arguments.callee;
+		Class.extend = extend;
 
 		if (className) {
 			Class.className = className;
@@ -326,7 +328,7 @@
 		return function () {
 			this.first = first;
 			this.last = last;
-			this.getById = id;
+			this.iD = id;
 			this.index = index;
 			return this;
 		};
@@ -339,39 +341,40 @@
 	* Static methods
 	*/
 	{
-		methodMaps: {
+		_methods: {
 			create: 'POST',
 			read:   'GET',
 			update: 'PUT',
 			destroy:'DELETE'
 		},
+
+		ajaxProvider: 'superagent',
+		
+		fakeJSON: false,
+		
+		fakeHTTP: false,
+
+		_getMethod: function (verb) {			
+			if (this.fakeHTTP) {				
+				if (verb === 'update' || verb === 'destroy') { return 'POST'};
+			}
+			return this._methods[verb];
+		},
+
 		idAttribute: 'id',
 		schema: [],
 		connection: {},
 		collection: {},
 		errors: {},
 		initialize: function () {},
-		// Model errors object
-		errorMessages: {
-			missingSchemaDataType: 'Missing schema data type',
-			missingQueryParameter: 'Missing query parameter',
-			missingModel: 'Model object is missing, please pass a model object.',
-			missingBaseUrl: 'getURL: Missing baseURL or uri values in extend file',
-			invalidEnum: 'Invalid listed value',
-			required: 'Field is required',
-			typeMismatch: 'Data type mismatch',
-			invalidModelName: 'Invalid model name',
-			invalidServerResponse: 'Invalid server response type, is not a JSON object',
-			validationFail: 'Validation failed'
-		},
 				
-		find: function (query, fn) {
+		find: function (query, fn) { 
 			var id;
 			if (!_.isHash(query)) {
 				id = (query !== 'all') ? query : null;
 				query = {};
 			}
-			return this._request({
+			return this._crud({
 				id: id,
 				data: query,
 				action: 'read'
@@ -408,7 +411,7 @@
 						}
 					}
 				} else {
-					throw this.errorMessages.misingQueryParameter;
+					throw new Error('Atomy.findOnClient: Missing query parameter');
 				}
 			}
 			_.isFunction(fn) && fn(result, index);
@@ -428,23 +431,25 @@
 		 * @return {Object}
 		 */
 		update: function (id, data, fn, model) {
-			var _data = {};
+			var key, val; model = this.model || null;
 			if (_.isHash(id)) {
 				fn = data;
 				data = id;
 				id = data[this.idAttribute];
 			}
 			if (model) {
-				_.each(data, function (dat, f) {
+				for (key in data) {
+					val = data[key];
 					if (model._.data) {
-						(model._.data[f] !== dat) && (_data[f] = dat);
-					} else {
-						_data[f] = dat;
+						(model._.data[key] !== val) && (data[key] = val);
 					}
-				});
-				data = _data;
+				}
 			}
-			return this._request({
+
+			console.log('UPDATE ====> ', this.model);
+
+
+			return this._crud({
 				data: data,
 				action: 'update',
 				model: model,
@@ -462,7 +467,7 @@
 		 */
 		destroy: function (id, fn, model) {
 			//(model) && (model._ckey) && Collection.remove(model._ckey);
-			return this._request({
+			return this._crud({
 				action: 'destroy',
 				model: model,
 				id: id
@@ -470,10 +475,37 @@
 		},
 
 		sync: function (o, fn) {
-			var req = request(this.methodMaps[o.action], this._getURL(o.id))
-			.send(o.data || {})
-			.end(_.curry(this._callback, this, o, fn));
-			return req;
+			return this.request({
+				url: this._getURL(o.id),
+				type: this._getMethod(o.action),
+				data: !this.fakeHTTP ? (o.data || {}) : _.extend(o.data, {_method: this._getMethod(o.action)}, true),			
+				success: _.curry(this._callback, this, o, fn),		
+				error: _.curry(this._callback, this, {}, fn),
+				dataType: 'json'
+			}, this.fakeJSON, o.action);
+		},
+
+		request: function (req, fakeJSON, action) {
+			var self = this,
+				provider = ({ 
+					zepto: '$', 
+					jquery: '$', 
+					superagent: 'superagent'
+				})[this.ajaxProvider];
+			if (!provider) { throw new Error('Atomy.request: Invalid Ajax provider'); }
+			return {
+				'superagent': function () {
+					return request(req.type, req.url)
+					.type( !fakeJSON ? req.dataType : 'form-data')
+					.send(req.data).end(req.success);
+				},
+				'$': function () {					
+					req.beforeSend = function(xhr) {					
+						fakeJSON && xhr.setRequestHeader('X-HTTP-Method-Override', self._methods[action]);
+					}
+					return $.ajax(req);
+				}				
+			}[provider]();
 		},
 
 		records: function () {
@@ -495,20 +527,20 @@
 		 * @param {Boolean} fn The callback function to execute
 		 * @return {Void}
 		 */
-		_request: function (o, fn) {
+		_crud: function (o, fn) { 
 			var req, errors;
-			if (o.model && o.action === 'update') {
-				var m = o.model, diff = {};
-				m._updateFields('', o.data);
-				diff = m._diff(m._.data);
-				m._updateFields('update', diff);
-				m.trigger('update', m, diff);
+			if (o.model && o.action === 'update') { 
+				var diff = {};
+				o.model._updateFields('', o.data);
+				o.data = diff = o.model._diff(o.model._.data); 
+				o.model._updateFields('update', diff);
+				o.model.trigger('update', o.model, diff);
 			}
 			if (o.model && this.validate && (errors = o.model._validate())) {
 				var err = { errors: errors, error: true, ok: false };
 				o.model.trigger('error', o.model, errors);
 				return _.isFunction(fn) && fn.call(this, err) || err;
-			}
+			}			
 			return this.sync(o, fn);
 		},
 
@@ -520,14 +552,18 @@
 		 * @param {Function} fn The callback function to execute
 		 * @return {Mixed}
 		 */
-		_callback: function (o, fn, res) {
-			if (res && res.body && !o.model) {
-				(res.body = this._toModel(o.data));
-			} else {
-				res = { body: o.model };
-			}
-			this._sync(o.action, res.body, o);
-			return _.isFunction(fn) && fn.call(this, res) || res;
+		_callback: function (o, fn, res, text, xhr) {  console.log('_CALLBACK', res);
+			var response = {},
+				isSupA = (this.ajaxProvider === 'superagent'),
+				hasBody = (isSupA && res && res.body),
+				isError = (text === 'error'),
+				_res = hasBody ? res.body : res;			
+			o.model && hasBody && (response = res);
+			response.doc = !isError ? (o.model ? _.extend(o.model, _res) : this._toModel(_res)) : {};
+			if (hasBody) { delete res.body; }		
+			this._sync(o.action, response.doc, o);
+			return _.isFunction(fn) && 
+			fn.call(this, this._status(response, isSupA || (isError ? xhr.status : res.status))) || response;
 		},
 
 		/**
@@ -555,11 +591,39 @@
 					}
 					model.trigger(action, model);
 				} else {
-					if (this.methodMaps[action]) {
+					if (this._getMethod(o.action)) {
 						DB[name][model[this.idAttribute]] = model;
 					}
 				}
 			}
+		},
+
+		/**
+		 * @function
+		 * Check and bind response status codes.
+		 * @hide		 
+		 * @param {Object} res Response object
+		 * @param {Number} code Status code
+		 * @param {optional:String} message Message to bind to response
+		 * @return {Object}
+		 */
+		_status: function (res, status) {
+			if (this.ajaxProvider === 'superagent') { return res; }
+			var type = status / 100 | 0;
+		    res.status = status;
+		    res.statusType = type;
+		    res.info = 1 == type;
+		    res.ok = 2 == type;
+		    res.clientError = 4 == type;
+		    res.serverError = 5 == type;
+		    res.error = 4 == type || 5 == type;
+		    res.accepted = 202 == status;
+		    res.noContent = 204 == status || 1223 == status;
+		    res.badRequest = 400 == status;
+		    res.unauthorized = 401 == status;
+		    res.notAcceptable = 406 == status;
+		    res.notFound = 404 == status;
+			return res;
 		},
 
 		/**
@@ -606,9 +670,9 @@
 	 */
 	{
 		init: function (data, options) {
-			var schema = this._class.schema, id = this.idAttribute = this._class.idAttribute;
-			this._escapedFields = {};
-			schema && !schema[id] && this._class.schema.push(id);
+			var id = this.idAttribute = this._class.idAttribute;
+			this._escapedFields = {};			
+			(this._class.schema.indexOf(id) === -1) && this._class.schema.push(id);
 			this._ = {data:{}};
 			this.connection = this._class.connection;
 			this._isNew = true;
@@ -616,33 +680,26 @@
 			this._class.initialize.call(this, options);
 			data && this._updateFields('create', data);
 			(!this[id]) && (this[id] = _.cid());
-			//this.on('all', this._onModelEvent);
+			this._class.model = this;					
 			return this;
 		},
 
-		_onModelEvent: function(ev, model, options) {
-			//this.trigger(ev);
-		  //this.trigger.apply(this, arguments);
-		},
-
 		save: function (fn) {
-			var result = this[this.isNew() ? 'create' : 'update'](fn);
-			this.trigger('save', this);
-			return result;
+			return this[this.isNew() ? 'create' : 'update'](fn, null, this.trigger('save', this)) ;
 		},
 
-		create: function (/*data, */ fn) {
+		create: function (fn) {
 			this._loadServerData();
 			this._isNew = false;
-			return this._class._request({
-				//data: data,
+			return this._class._crud({				
 				action: 'create',
-				model: this
+				model: this,
+				data: this._.data
 			}, fn);
 		},
 
 		update: function (data, fn) {
-			_.isFunction(data) && (fn = data);// || (data = _.extend(this.toJSON(), data));
+			_.isFunction(data) && (fn = data);
 			return this._class.update(this[this.idAttribute], data, fn, this);
 		},
 
@@ -655,9 +712,9 @@
 		},
 
 		clear: function () {
-			var schema, key, changed = {}, before = {}, i, len;
-			if (schema = this._class.schema) {
-				for (i = 0, len = schema.length; i < len; i++) {
+			var schema = this._class.schema, key, before, changed = before = {};
+			if (schema) {
+				for (var i = 0, len = schema.length; i < len; i++) {
 					key = schema[i];
 					if (this[key] !== undefined) {
 						before[key] = this[key];
@@ -686,19 +743,7 @@
 		 */
 		isValid: function () {
 			return !this._validate();
-		},
-
-		/**
-		 * @function validate
-		 * @return {Object}
-		 */
-		_validate: function () {
-			var error, validate = this._class.validate;
-			if (error = validate && validate.call(this)) {
-				this.trigger('error', this, error);
-			}
-			return error;
-		},
+		},	
 		
 		/**
 		 * @function toJSON
@@ -715,8 +760,19 @@
 		},
 
 		escape: function (name) {
-			var val  = this[name];
-			return _.escape(val === null ? '' : '' + val);
+			return _.escape(this[name] === null ? '' : '' + this[name]);
+		},
+
+		/**
+		 * @function validate
+		 * @return {Object}
+		 */
+		_validate: function () {
+			var error, validate = this._class.validate;
+			if (error = validate && validate.call(this)) {
+				this.trigger('error', this, error);
+			}
+			return error;
 		},
 
 		/**
@@ -727,13 +783,11 @@
 		 * @return {Object}
 		 */
 		_loadServerData: function () {
-			var schema = this._class.schema, i, key, len;
-			if (schema) {
-				for (i = 0, len = schema.length; i < len; i++) {
-					key = schema[i];
-					if (this[key] !== undefined && !_.isEqual(this[key], this._.data[key])) {
-						this._.data[key] = this[key];
-					}
+			var schema = this._class.schema, i, key, len = schema.length;
+			for (i = 0, len = schema.length; i < len; i++) {
+				key = schema[i];
+				if (this[key] !== undefined && !_.isEqual(this[key], this._.data[key])) {
+					this._.data[key] = this[key];
 				}
 			}
 			return this;
@@ -743,13 +797,14 @@
 		 * @function
 		 * Update model fields with passed data.
 		 * @hide
-		 * @param {Object} data Passed data
+		 * @param {String} action
+		 * @param {Object} data Passed data object
 		 * @return {Object}
 		 */
 		 _updateFields: function (action, data) {
-			var schema = this._class.schema, i, key, len;
+			var schema = this._class.schema, i, key, len = schema.length;
 			if (schema && data) {
-				for (i = 0, len = schema.length; i < len; i++) {
+				for (i = 0; i < len; i++) {
 					key = schema[i];
 					if (data[key] !== undefined) {
 						this[key] = data[key];
@@ -764,8 +819,8 @@
 		},
 
 		_diff: function (oldObj) {
-			var schema = this._class.schema, i, k, len, diff = {};
 			if (!oldObj) { return null; }
+			var schema = this._class.schema, i, k, len, diff = {};			
 			for (i = 0, len = schema.length; i < len; i++) {
 				k = schema[i];
 				if (this.hasOwnProperty(k)) {
@@ -782,9 +837,9 @@
 			return diff;
 		}
 	});
-
+	
 	_.each([
-		'forEach', 'each', 'map', 'reduce', 'reduceRight', 'find', 'filter',
+		'forEach', 'each', 'map', 'reduce', 'reduceRight', 'filter',
 		'reject', 'every', 'any', 'include', 'invoke', 'max', 'min', 'sortBy', 'sortedIndex',
 		'toArray', 'size', 'initial', 'rest', 'shuffle', 'isEmpty', 'groupBy'],
 		function(method) {
@@ -793,14 +848,67 @@
 			};
 		}
 	);
+	
+	Atomy.View = Atomy.Class.extend('View', 
+
+	/**
+     * Static methods
+     */
+	{
+		tag: 'div',
+
+		className: '',
+
+		template: _.template(),
+
+		events: {
+			'.check': function () {
+
+			}
+		}
+
+	}, 
 
 
 
-	var isExplorer = /msie [\w.]+/;
-	var historyStatus = false;
-	var docMode = document.documentMode;
-	var oldIE = (isExplorer.exec(navigator.userAgent.toLowerCase()) && (!docMode || docMode <= 7));
-	var oldHash = '';
+	/*
+
+		var html = $(#template).html();
+
+		var template = _.template(html);
+
+		var elem = myView('.el').render(this.model);
+
+		$('#dom').html(elem);
+
+	*/
+
+
+	/**
+     * Prototype methods
+     */
+	{
+		/**
+			var Model = { name: 'Tom' }
+			View('').render(model);
+
+		 */
+
+		init: function (model) {
+
+		},
+
+		render: function () {
+
+		}
+	})
+
+	var isIE = /msie [\w.]+/,
+    	historyStatus = false,
+    	docMode = document.documentMode,
+    	oldIE = (isIE.exec(navigator.userAgent.toLowerCase()) && (!docMode || docMode <= 7)),
+    	loc = window.location,
+    	oldHash = '';
 
 	Atomy.Router = Atomy.Class.extend('Router', 
 
@@ -808,13 +916,14 @@
      * Static methods
      */
     {
-    	options: {
-			root: 'home',
-			interval: 50,
-			history: false,
-			fallback: true,
-			hashbang: true
-		},
+        options: {
+            root    : '',
+            interval: 50,
+            history : false,
+            fallback: true,
+            hashbang: true,
+            listen  : true
+        },
         
         routes: {}
     }, 
@@ -823,92 +932,92 @@
      * Prototype methods
      */
     {
-        init: function (options) {          
+        init: function (o) {
+            // TO DO => Fix extend
+            o = _.extend(Atomy.Router.options, this._class.options);
             this._ids = {};         
-            this._routes = {};          
-            this._isMatched = false;            
-            this._currentRoute = null;
-            this._register(this._class.routes);
-            this._hashbang = this._class.options.hashbang;
-            this._fallback = this._class.options.fallback;
-            this._hasPushState = !!(window.history && window.history.pushState);            
-        },      
-
-        listen: function (fallback) {
-        	var self = this, oldHash, hash,
-        		options = this._class.options;        		          
-        		fn = function () {
-	        		hash = getHash();
-	        		if (hash !== oldHash) {
-	        			hash && self.to(hash);
-	        			oldHash = hash;
-	        		}
-	        		return false;
-	        	};
-
-			/*if (hash === '' && options.root !== '') {
-				location.hash = options.root;
-			}*/
-
-			if (this._hasPushState) {
-				window.onpopstate = fn;
-			} else {
-				if (this._fallback) {
-					if ('onhashchange' in window !oldIE)) {
-						window.onhashchange = fn;
-					} else {
-						setInterval(fn, options.interval);
-					}
-				}
-			}
-		},
-
-		pushState: function (state, title, path) {
-			if (this._hasPushState) {
-				this.to(path, function () {
-					history.pushState(state, title, path);
-				});
-			} else {
-				if (this._fallback) {
-					window.location.hash = this._hashbang ? '#!' : '#' + path;
-				}
-			}
-		},
-
-        to: function (id, route, fn) {          
-            var routes = this._routes;
-            if (_.isFunction(route) || route == null) {
-                fn = route;
-                route = id;
-                id = null;
-            }
-            if (id) {
-                if (path = this._ids[id]) {                 
-                    this._run(path, route, fn || routes[path]);
-                }
-            } else {
-                _.each(routes, function (cb, path) {
-                    this._run(path, route, fn || cb);
-                }, this);
-            }
-
+            this._routes = {};    
+            this.map(this._class.routes);
+            this._hashbang = o.hashbang;
+            this._fallback = o.fallback;
+            this._hasPushState = !!(window.history && window.history.pushState);                
+            this._hasPushState = false;
+            o.listen && this.listen();                     
         },
-        
-        getHash: function(windowOverride) {
-	      var loc = windowOverride ? windowOverride.location : window.location;
-	      var match = loc.href.match(/#(.*)$/);
-	      return match ? match[1] : '';
-	    },
 
-        _register: function (routes) {            
-            for (var route  in routes) {
-            	var cb = routes[route];
+        /**
+         * Start listening for hash changes or history
+         * @return {[type]}
+         */
+        listen: function () {
+            var self = this,                                  
+                fn = function (e) {              
+                    var hash = self.fragment();
+                    if (hash !== oldHash) {
+                        self._check(hash);
+                        oldHash = hash;
+                    }
+                };
+            if (this._hasPushState) {                    
+                window.onpopstate = fn;
+            } else {
+                if (this._fallback) {
+                    if ('onhashchange' in window && !oldIE) {
+                        window.onhashchange = fn;
+                    } else {
+                        this._intervalTimer = setInterval(fn, this._class.options.interval);
+                    }
+                }
+            }
+        },
+
+        fragment: function (fragment) {
+            return this._hasPushState ? loc.pathname : this.hash();
+        },
+
+        hash: function(override) {
+            var l = override ? override.location : loc, 
+            	match = l.href.match(/#!?(.*)$/);
+            return match ? match[1] : '';
+        },
+
+        map: function (route, fn) {             
+            if (_.isHash(route)) {
+                for (var r in route) {                        
+                    this.map(r, route[r]);
+                }
+            } else {                    
                 var p = route.split(' ');
-                this._routes[p[0]] = cb;
-                if (p[1]) {
+                this._routes[p[0]] = fn;
+                if (p[1]) { 
                     this._ids[p[1]] = p[0];
                 }
-                this.pushState({}, p[1] || null, p[0]);
+            }
+            return this;
+        },
+
+        navigate: function (fragment, options) {
+            options === true && (options = { trigger: true });
+            this._pushState(fragment);                
+            options.trigger && this._check(fragment);
+            return this;
+        },
+        
+        _pushState: function (fragment) {
+            if (this._hasPushState) {
+                history.pushState(null, null, fragment);
+            } else {
+                if (this._fallback) {
+                    loc.hash = '#' + (this._hashbang ? '!' : '') + fragment;
+                }
+            }
+        },
+
+        _check: function (fragment) {
+            var path, fn;
+            for (path in this._routes) {
+                fn = this._routes[path], _.isString(fn) && (fn = this._class[fn]);
+                if (this._run(path, fragment, fn)) { break; }
             }
         },
 
@@ -922,24 +1031,12 @@
          * @return {Object|False}
          */
         _run: function (path, hash, fn) {
-            if ((params = this._match(path, hash))) {
-                this._isMatched = true;
+        	var names = [], params, path = this._regex(path, names).exec(hash);
+            if (fn && (params = (path) ? this._params(names, path) : null)) {
                 ( _.isString(fn) && this._class[fn] || fn).call(this, params.obj, params);
                 return true;
             }
             return false;
-        },
-        
-        /**
-         * Match an specific router route.
-         *
-         * @param  {String} path
-         * @param  {String} str
-         * @return {Array}
-         */
-        _match: function(path, str){
-            var names = [], values = this._regex(path, names).exec(str);
-            return (values) ? this._params(names, values) : null;
         },
 
         /**
@@ -977,24 +1074,17 @@
          * @return {Object}
          */
         _params: function (names, values) {
-            // The result object
-            var obj = { path: values[0], names: names, values: values, obj: {} };
-            for (var i = 1, len = values.length; i < len; i++) {
+            var i, obj = { path: values[0], names: names, values: values, obj: {} };
+            for (i = 1, len = values.length; i < len; i++) {
                 obj.obj[names[i-1].name] = values[i];
             }
             return obj;
-        }        
+        }     
     });
 
-	
-
 	Atomy.List.call(Atomy.Model);
-
-	// Mix events
 	Atomy.Events.call(Atomy.Model);
-	//Atomy.Events.call(Atomy.History);
 	Atomy.Events.call(Atomy.Model.prototype);
-
 
 	return Atomy;
 
