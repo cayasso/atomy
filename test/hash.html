@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AtomyJS Framework Test Suite</title>
+     <link rel="stylesheet" href="vendor/mocha.css">
+</head>
+<body>
+    <div id="mocha"></div>
+    
+    <h2>Hash tags</h2>
+    <a href="#/algo">Algo</a>
+    <a href="#/mama">Mama</a>
+    <a href="#/algo">Papa</a>
+
+    <h2>html5 history</h2>
+
+    <a href="/hijo">Hijo</a>
+    <a href="/mama">Mama</a>
+    <a href="/papa">Papa</a>
+
+    <script src="vendor/jquery-1.7.1.min.js"></script>
+    <script src="vendor/underscore-min.js"></script>
+    <script src="vendor/superagent.min.js"></script>
+    <script src="vendor/backbone.js"></script>
+
+    <script src="../lib/atomy.js"></script>
+
+
+    <script>
+
+
+        var Alert = Atomy.Model.extend('Alert', {
+            schema: ['email', 'type', 'message', 'service', 'dateTime'],
+            connection: {
+                host: 'http://atomy.local/api/',
+                key: 'alerts'
+            }
+        }, true);
+
+
+        Alert.find('all', function (res) {
+            console.log(res.body);
+        });
+
+
+        /*var Router = Atomy.Router.extend('myRouter', {
+
+            options: {
+                root: 'home',
+                history: true,
+                fallback: true,
+                hashbang: false
+            },
+
+            routes: {
+
+                '/:name': 'handler'
+
+                '/mama': function (params) {
+                    alert('si es mi mama');
+                },
+
+                '/papa': function (params) {
+                    alert('si es mi papa');
+                },
+
+                '/hijo': function (params) {
+                    alert('si es mi hijo');
+                }
+
+                // '/papa': 'handler'
+            }, 
+
+            'handler': function (params, id) {
+                alert('si es mi ' + params.name);
+            }
+
+        }, true);
+    
+
+
+        var route = Router();
+
+        route.map('/:name my', function (params) {
+            alert('hooola ' + params.name);
+        });
+
+        $('a').click(function () {
+            var fragment = $(this).attr('href');               
+            if (fragment.indexOf('#') === -1) {
+                route.navigate(fragment, { trigger: true });
+                return false;
+            }
+        }); */  
+
+        // Route.listen();
+
+        /*Route.run(':id/:type/', 'hola/tipo/', function (params) {            
+            console.log('hola', params);
+        });*/
+
+        /*var Router = Atomy.Router.extend('myRouter', {
+
+            history: true,
+
+            routes: {
+
+                ':id my': 'handler',
+
+                '/space/:id rname': function (params) {
+
+                },
+
+                '/model/:id': 'handler'
+            }, 
+
+            'handler': function (params, id) {
+                console.log(params);
+                alert('encontrado');
+            }
+
+        }, true);
+
+
+        var route = Router();
+
+        route.navigate('paso', { replace: false });*/
+
+        //route.to('my','hola');
+
+        /*route.to();*/
+
+        /*route.to('/task/123');
+
+        route.to('name', { id: 123, model: 'task'});
+
+        route.to('name', { id: 123, model: 'task'}, function (params) {
+            // Provide my own callback
+        });
+
+        route.url();
+
+
+        $('.link').click(function () {
+            var url = $(this).attr('href');
+            route.to('name', url, function (params) {
+
+            });
+
+            return false;
+        });*/
+
+
+
+
+        /*hasher.changed(function (newHash, oldHash) {
+            console.log('CHANGED', 'new ', newHash, 'old', oldHash);
+        });
+        
+        hasher.initialized(function (newHash, oldHash) {
+
+            console.log('INITIALIZED', 'new ', newHash, 'old', oldHash);
+        });
+        hasher.init();
+        hasher.setHash('foo');
+        hasher.setHash('maria');*/
+    </script>
+
+</body>
+</html>

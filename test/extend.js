@@ -16,47 +16,55 @@ describe('Atomy.Class.extend', function () {
     });
 
 	describe('Extend: extend method', function () {
+		var Model, model;
+
+		beforeEach(function () {
+			Model = Atomy.Model.extend('Model', {
+				add: function (num) { return num+1; }
+			});
+			model = new Model();
+		});
+
+		afterEach(function () {
+			Model = null;
+			model = null;
+		});
+
 		it('Extend: should instantiate with and without `new`', function () {
-			var Model = Atomy.Model.extend('Model');
-			var model = new Model();
 			var model2 = Model();
 			expect(model).to.be.a(Model);
 			expect(model2).to.be.a(Model);
 		});
 		it('Extend: should extend prototype if no second argument provided', function () {
-			var Model = Atomy.Model.extend('Model', {
-				add: function (num) { return num+1; }
-			});
-			var model = Model();
 			expect(model.add).to.be.ok();
 			expect(model.add(1)).to.be(2);
 			expect(Model.add).not.to.ok();
 		});
 		it('should extend static if second argument was provided', function () {
-			var Model = Atomy.Model.extend('Model', {
+			Model = Atomy.Model.extend('Model', {
 				add: function (num) { return num+1; }
-			}, {});
-			var model = Model();
+			}, true);
+			model = Model();
 			expect(Model.add).to.be.ok();
 			expect(Model.add(1)).to.be(2);
 			expect(model.add).not.to.ok();
 		});
 		it('should allow true as second argument', function () {
-			var Model = Atomy.Model.extend('Model', {
+			Model = Atomy.Model.extend('Model', {
 				add: function (num) { return num+1; }
 			}, true);
-			var model = Model();
+			model = Model();
 			expect(Model.add).to.be.ok();
 			expect(Model.add(1)).to.be(2);
 			expect(model.add).not.to.ok();
 		});
 		it('should extend both prototype and static when both arguments were provided', function () {
-			var Model = Atomy.Model.extend('Model', {
+			Model = Atomy.Model.extend('Model', {
 				add: function (num) { return num+1; }
 			}, {
 				myAdd: function (num) { return num+1; }
 			});
-			var model = Model();
+			model = Model();
 			expect(Model.add).to.be.ok();
 			expect(model.myAdd).to.be.ok();
 			expect(Model.add(1)).to.be(2);

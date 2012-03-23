@@ -7,15 +7,93 @@
 </head>
 <body>
     <div id="mocha"></div>
+    <script src="vendor/jquery-1.7.1.min.js"></script>
     <script src="vendor/superagent.min.js"></script>
     <script src="vendor/expect.js"></script>
     <script src="vendor/mocha.js"></script>
     <script src="vendor/underscore-min.js"></script>
+    <script src="vendor/sinon-1.3.2.js"></script>
     <script src="../lib/atomy.js"></script>
     <script>mocha.setup('bdd');</script>
+    
+    
     <script src="events.js"></script>
     <script src="extend.js"></script>
     <script src="model.js"></script>
-    <script>mocha.run();</script>
+    
+    <script>mocha.run();</script> 
+
+
+    <script>
+
+        /*
+
+        describe('Model: find("all")', function () {
+
+            var server, Task, cb;
+            beforeEach(function () {
+                server = sinon.fakeServer.create();
+                server.respondWith('GET', '/tasks?',
+                    [200, {'Content-Type': 'application/json'},
+                    '[{ "id": 123, "title": "work", "notes": "hard" },{ "id": 124, "title": "hard", "notes": "work" }]']);
+                cb = sinon.spy();
+                Task = Atomy.Model.extend('Task', {
+                    schema: ['title', 'notes'],
+                    connection: {
+                        host: '/',
+                        key: 'tasks'
+                    }
+                }, true);
+            });
+
+            afterEach(function () {
+                server.restore();
+                cb.reset();
+            });
+            
+            it ('should make an AJAX request', function () {
+                Task.find('all', cb);
+                server.respond();
+                expect(cb.calledOnce).to.be.ok();
+                expect(server.requests.length).to.be(1);
+                expect(cb.args[0][0].body[0].title).to.be('work');
+                expect(cb.args[0][0].body[1].title).to.be('hard');
+            });
+
+            it ('should use GET method', function () {
+                Task.find('all', cb);
+                server.respond();
+                expect(server.requests[0].method).to.be('GET');
+            });
+            it ('should make an AJAX request to the URL /tasks', function () {
+                Task.find('all', cb);
+                server.respond();
+                expect(server.requests[0].url.replace('?', '')).to.be('/tasks');                
+            });
+            it ('should wrap each object from response array in a Model class', function () {
+                Task.find('all', cb);
+                server.respond();
+                expect(cb.args[0][0].body[0]).to.be.a(Atomy.Model);
+                expect(cb.args[0][0].body[1]).to.be.a(Atomy.Model);
+                expect(cb.args[0][0].body[0]).to.be.a(Task);
+                expect(cb.args[0][0].body[1]).to.be.a(Task);
+                expect(cb.calledOnce).to.be.ok();
+                expect(server.requests.length).to.be(1);
+            });
+            it ('should handle when respond doesn\'t return an array', function () {
+                server = sinon.fakeServer.create();
+                server.respondWith('GET', '/tasks?',
+                [200, {'Content-Type': 'application/json'},
+                '{ "id": 123, "title": "work", "notes": "hard"}']);
+                Task.find('all', cb);
+                console.log(server.requests);
+                server.respond();
+                expect(cb.args[0][0].body).to.be.a(Task);
+                expect(cb.args[0][0].body).to.be.a(Atomy.Model);                
+                expect(cb.args[0][0].body).to.not.be.an(Array);
+            });
+        });*/
+    </script>
+
 </body>
 </html>

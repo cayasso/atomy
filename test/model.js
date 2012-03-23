@@ -31,7 +31,7 @@ describe('Atomy.Model', function () {
 		});
 	});
 
-	describe('Model: initialize', function () {
+	describe('Model: initialize()', function () {
 		it('should call initialize once per instantiation', function () {
 			var Model = Atomy.Model.extend('Model', {
 				initialize: function () {
@@ -63,21 +63,20 @@ describe('Atomy.Model', function () {
 	});
 
 	describe('Model: schema', function () {
-		it('should only instantiate model with defined schema attributes', function () {
-			var Model = Atomy.Model.extend('Model', {
-				schema: ['one', 'two']
+		var Model, model;
+		beforeEach(function () {
+			Model = Atomy.Model.extend('Model', {
+				schema: ['one', 'two'],
+				sync: sync
 			}, true);
-			var model = Model({ one: 1, two: 2, three: 3 });
+			model = Model({ one: 1, two: 2, three: 3 });
+		});
+		it('should only instantiate model with defined schema attributes', function () {
 			expect(model.one).to.be(1);
 			expect(model.two).to.be(2);
 			expect(model.three).to.be(undefined);
 		});
 		it('should only save defined attributes', function () {
-			var Model = Atomy.Model.extend('Model', {
-				schema: ['one', 'two'],
-				sync: sync
-			}, true);
-			var model = Model({ one: 1, two: 2, three: 3 });
 			var id = model.id;
 			var res = model.save();
 			expect(model.one).to.be(1);
@@ -85,30 +84,28 @@ describe('Atomy.Model', function () {
 			expect(model.three).to.be(undefined);
 		});
 		it('should have a predefined id in schema', function () {
-			var Model = Atomy.Model.extend('Model', {
+			Model = Atomy.Model.extend('Model', {
 				schema: ['id', 'two'],
 				sync: sync
 			}, true);
-			var model = Model({ id: 1, two: 2, three: 3 });
+			model = Model({ id: 1, two: 2, three: 3 });
 			expect(model.id).to.ok(1);
 		});
 	});
 
-	describe('Model: isNew', function () {
-		it('should be new on first instantiation', function () {
-			var Model = Atomy.Model.extend('Model', {
+	describe('Model: isNew()', function () {
+		var Model, model;
+		beforeEach(function () {
+			Model = Atomy.Model.extend('Model', {
 				schema: ['one', 'two'],
 				sync: sync
 			}, true);
-			var model = Model();
+			model = Model();
+		});
+		it('should be new on first instantiation', function () {
 			expect(model.isNew()).to.be(true);
 		});
 		it('should not be new after save or update', function () {
-			var Model = Atomy.Model.extend('Model', {
-				schema: ['one', 'two'],
-				sync: sync
-			}, true);
-			var model = Model();
 			model.save();
 			expect(model.isNew()).not.to.be(true);
 			expect(model.isNew()).to.be(false);
@@ -118,18 +115,13 @@ describe('Atomy.Model', function () {
 			expect(model.isNew()).to.be(false);
 		});
 		it('should not be new after create', function () {
-			var Model = Atomy.Model.extend('Model', {
-				schema: ['one', 'two'],
-				sync: sync
-			}, true);
-			var model = Model();
 			model.create({ one: 1 });
 			expect(model.isNew()).not.to.be(true);
 			expect(model.isNew()).to.be(false);
 		});
 	});
 
-	describe('Model: toJSON', function () {
+	describe('Model: toJSON()', function () {
 		it('should get JSON representation of the model', function () {
 			var Model = Atomy.Model.extend('Model', {
 				schema: ['one', 'two'],
@@ -185,7 +177,7 @@ describe('Atomy.Model', function () {
 		});
 	});
 
-	describe('Model: escape', function () {
+	describe('Model: escape()', function () {
 		it('should return escaped values', function () {
 			var Model = Atomy.Model.extend('Model', {
 				schema: ['title'],
@@ -208,7 +200,7 @@ describe('Atomy.Model', function () {
 		});
 	});
 
-	describe('Model: clone', function () {
+	describe('Model: clone()', function () {
 		it('should have the same values', function () {
 			var attrs = { 'foo': 1, 'bar': 2, 'baz': 3},
 				Model = Atomy.Model.extend('Model', {
@@ -235,36 +227,22 @@ describe('Atomy.Model', function () {
 		});
 	});
 	
-	describe('Model: validate', function () {
-		it('should not be valid', function () {
-			var Model = Atomy.Model.extend('Model', {
+	describe('Model: validation', function () {
+		var Model, model;
+		beforeEach(function () {
+			Model = Atomy.Model.extend('Model', {
 				schema: ['admin'],
 				validate: function () {
 					if (this.admin) return "Can't change admin status";
 				}
-			}, true),
+			}, true);
 			model = Model({ admin: true });
+		});
+
+		it('should not be valid', function () {
 			expect(model.isValid()).to.be(false);
 		});
-		it('should pass because no return value was provided', function () {
-			var Model = Atomy.Model.extend('Model', {
-				schema: ['admin'],
-				validate: function () {
-					if (this.admin) return;
-				}
-			}, true),
-			model = Model({ admin: true });
-			expect(model.isValid()).to.be(true);
-		});
 		it('should trigger error event on save', function () {
-			var error,
-				Model = Atomy.Model.extend('Model', {
-					schema: ['admin'],
-					validate: function () {
-						if (this.admin) return "Can't change admin status";
-					}
-				}, true),
-				model = Model({ admin: true });
 			model.on('error', function (model, err) {
 				expect(err).to.be("Can't change admin status");
 				expect(model.admin).to.be(model.admin);
@@ -276,9 +254,19 @@ describe('Atomy.Model', function () {
 				expect(res.errors).to.be("Can't change admin status");
 			});
 		});
+		it('should pass because no return value was provided', function () {
+			var Model = Atomy.Model.extend('Model', {
+				schema: ['admin'],
+				validate: function () {
+					if (this.admin) return;
+				}
+			}, true),
+			model = Model({ admin: true });
+			expect(model.isValid()).to.be(true);
+		});
 	});
 
-	describe('Model: clear', function () {
+	describe('Model: clear()', function () {
 		it('should delete all schema attributes from model', function () {
 			var Model = Atomy.Model.extend('Model', {
 					schema: ['a', 'b', 'c']
@@ -307,14 +295,14 @@ describe('Atomy.Model', function () {
 				}, true);
 			for (i = 0; i < 10; i++ ) {
 				var res = Task.create({ a: i }),
-					task = res.body;
+					task = res.doc;
 				records = Task.records();
 				expect(records[task.id].a).to.be(task.a);
 			}
 			Task.clearRecords();
 		});
 
-		describe('Model: size', function () {
+		describe('Model: size()', function () {
 			it('should return correct count of records', function () {
 				var i, Task = Atomy.Model.extend('Task', {
 						schema: ['a'],
@@ -335,7 +323,7 @@ describe('Atomy.Model', function () {
 			});
 		});
 
-		describe('Model: first & last', function () {
+		describe('Model: first() & last()', function () {
 			it('should match with first and last records', function () {
 				var i, ids = [],
 					Task = Atomy.Model.extend('Task', {
@@ -346,7 +334,7 @@ describe('Atomy.Model', function () {
 					}, true);
 				for (i = 0; i < 10; i++ ) {
 					Task.create({ a: i }, function (res) {
-						ids.push(res.body.id);
+						ids.push(res.doc.id);
 					});
 				}
 				expect(Task.first().id).to.be(ids[0]);
@@ -355,7 +343,7 @@ describe('Atomy.Model', function () {
 			});
 		});
 
-		describe('Model: iD', function () {
+		describe('Model: iD()', function () {
 			it('should get the correct id only', function () {
 				var Task = Atomy.Model.extend('Task', {
 						schema: ['a'],
@@ -364,7 +352,7 @@ describe('Atomy.Model', function () {
 						}
 					}, true);
 				Task.create({ a: 'a' }, function (res) {
-					var task = res.body;
+					var task = res.doc;
 					expect(Task.iD(task.id).a).to.be('a');
 				});
 			});
@@ -386,23 +374,20 @@ describe('Atomy.Model', function () {
 					}, true);
 
 				Task.create({ a: 'a' }, function (res) {
-					var task = res.body;
+					var task = res.doc;
 					task.on('change', function (ev) {
 						expect(ev).to.be('update');
 					});
-
 					task.on('change:a', function (model, newVal, oldVal) {
 						expect(model.a).to.be(2);
 						expect(newVal).to.be(2);
 						expect(oldVal).to.be('a');
 					});
-
 					task.on('update', function (model, diff) {
 						expect(true).to.be.ok();
 						expect(model.a).to.be(2);
 						expect(diff).to.eql({ a: 2 });
 					});
-
 					task.a = 2;
 					task.save();
 
@@ -411,4 +396,309 @@ describe('Atomy.Model', function () {
 		});
 	});
 
+	describe('Model: Ajax', function () {
+
+		var server, Task, cb;
+
+		beforeEach(function () {
+			server = sinon.fakeServer.create();
+			server.respondWith('GET', /\/tasks\??/,
+				[200, {'Content-Type': 'application/json'},
+				'[{ "id": 123, "title": "work", "notes": "hard" },{ "id": 124, "title": "hard", "notes": "work" }]']);
+			cb = sinon.spy();
+			Task = Atomy.Model.extend('Task', {
+				schema: ['title', 'notes'],
+				//ajaxProvider: 'zepto',
+				//ajaxProvider: 'jquery',
+				ajaxProvider: 'superagent',
+				connection: {
+					host: '/',
+					key: 'tasks'
+				}
+			}, true);
+		});
+		
+		afterEach(function () {
+			server.restore();
+			cb.reset();
+		});
+
+		describe('Model: ajax provider', function () {
+            it ('should thwow an exeption on invalid provider', function () {
+                Task = Atomy.Model.extend('Task', {
+                    schema: ['title', 'notes'],
+                    ajaxProvider: 'invalid'
+                }, true);
+                expect(Task.find).to.throwException(function (e) {
+                    expect(e).to.be.an(Error);
+                });
+            });
+            it ('should not thwow an exeption on valid provider', function () {
+                expect(Task.find).to.throwException(function (e) {
+                    expect(Task.find).to.not.be(Error);
+                });
+            });
+        });
+
+		describe('Model: find("all")', function () {
+            
+            it ('should make an AJAX request', function () {
+                Task.find('all', cb);
+                server.respond();
+                expect(cb.calledOnce).to.be.ok();
+                expect(server.requests.length).to.be(1);
+                expect(cb.args[0][0].doc[0].title).to.be('work');
+                expect(cb.args[0][0].doc[1].title).to.be('hard');
+            });
+            it ('should use GET method', function () {
+                Task.find('all', cb);
+                server.respond();
+                expect(server.requests[0].method).to.be('GET');
+            });
+            it ('should make an AJAX request to the URL /tasks', function () {
+                Task.find('all', cb);
+                server.respond();
+                expect(server.requests[0].url.replace('?', '')).to.be('/tasks');
+            });
+            it ('should wrap each object from response array in a Model class', function () {
+                Task.find('all', cb);
+                server.respond();
+                expect(cb.args[0][0].doc[0]).to.be.a(Atomy.Model);
+                expect(cb.args[0][0].doc[1]).to.be.a(Atomy.Model);
+                expect(cb.args[0][0].doc[0]).to.be.a(Task);
+                expect(cb.args[0][0].doc[1]).to.be.a(Task);
+                expect(cb.calledOnce).to.be.ok();
+                expect(server.requests.length).to.be(1);
+            });
+            it ('should handle when respond doesn\'t return an array', function () {
+                server = sinon.fakeServer.create();
+                server.respondWith('GET', /\/tasks\??/,
+                [200, {'Content-Type': 'application/json'},
+                '{ "id": 123, "title": "work", "notes": "hard"}']);
+                Task.find('all', cb);
+                server.respond();
+                expect(cb.args[0][0].doc).to.be.a(Task);
+                expect(cb.args[0][0].doc).to.be.a(Atomy.Model);
+                expect(cb.args[0][0].doc).to.not.be.an(Array);
+            });
+        });
+
+		describe('Model: find({})', function () {
+			beforeEach(function () {
+				cb = sinon.spy();
+			});
+			it ('should make an AJAX request', function () {
+				Task.find({}, cb);
+				server.respond();
+				expect(cb.calledOnce).to.be.ok();
+				expect(server.requests.length).to.be(1);
+				expect(cb.args[0][0].doc[0].title).to.be('work');
+                expect(cb.args[0][0].doc[1].title).to.be('hard');
+			});
+			it ('should use GET method', function () {
+				Task.find({}, cb);
+				expect(server.requests[0].method).to.be('GET');
+			});
+			it ('should make an AJAX request to the URL /tasks', function () {
+				Task.find({}, cb);
+				expect(server.requests[0].url.replace('?', '')).to.be('/tasks');
+			});
+			it ('should send title & notes as params', function () {
+				Task.find({ title: 'work', notes: 'hard' }, cb);
+				expect(server.requests[0].url).to.be('/tasks?title=work&notes=hard');
+			});
+			it ('should wrap each object from body array in to a model', function () {
+				Task.find({}, cb);
+				server.respond();
+				expect(cb.args[0][0].doc[0]).to.be.a(Atomy.Model);
+				expect(cb.args[0][0].doc[1]).to.be.a(Atomy.Model);
+				expect(cb.args[0][0].doc[0]).to.be.a(Task);
+				expect(cb.args[0][0].doc[1]).to.be.a(Task);
+				expect(cb.calledOnce).to.be.ok();
+				expect(server.requests.length).to.be(1);
+			});
+			it ('should handle when respond doesn\'t return an array', function () {
+                server = sinon.fakeServer.create();
+                server.respondWith('GET', /\/tasks\??/,
+                [200, {'Content-Type': 'application/json'},
+                '{ "id": 123, "title": "work", "notes": "hard"}']);
+                Task.find('all', cb);
+                server.respond();
+                expect(cb.args[0][0].doc).to.be.a(Task);
+                expect(cb.args[0][0].doc).to.be.a(Atomy.Model);
+                expect(cb.args[0][0].doc).to.not.be.an(Array);
+            });
+		});
+
+		describe('Model: find(id)', function () {
+			beforeEach(function () {
+				server = sinon.fakeServer.create();
+				server.respondWith('GET', /\/tasks\/123\??/,
+					[200, {'Content-Type': 'application/json'},
+					'{ "id": 123, "title": "work", "notes": "hard" }']);
+				cb = sinon.spy();
+			});
+			it ('should make an AJAX request', function () {
+				Task.find(123, cb);
+				server.respond();
+				expect(cb.calledOnce).to.be.ok();
+				expect(server.requests.length).to.be(1);
+				expect(cb.args[0][0].doc.title).to.be('work');
+			});
+			it ('should use GET method', function () {
+				Task.find('all', cb);
+				expect(server.requests[0].method).to.be('GET');
+			});
+			it ('should make an AJAX request to URL /tasks/123', function () {
+				Task.find(123, cb);
+				expect(server.requests[0].url.replace('?', '')).to.be('/tasks/123');
+			});
+		});
+
+		describe('Model: create()', function () {
+			beforeEach(function () {
+				server = sinon.fakeServer.create();
+				server.respondWith('POST', '/tasks',
+					[204, {'Content-Type': 'application/json'},
+					'{ "id": 123, "title": "work", "notes": "hard" }']);
+				cb = sinon.spy();
+			});
+			it ('should use POST method', function () {
+				var task = Task.create({}, cb);
+				server.respond();
+				expect(server.requests[0].method).to.be('POST');
+			});
+			it ('should POST to URL /tasks', function () {
+				var task = Task.create({}, cb);
+				expect(server.requests[0].url).to.be('/tasks');
+			});
+			it ('should send title & notes as params', function () {
+				var task = Task.create({ title: 'work', notes: 'hard' }, cb);
+				server.respond();
+				expect(server.requests[0].method).to.be('POST');
+				expect(server.requests[0].requestBody).to.contain('title', 'notes', 'work', 'hard');
+				expect(cb.args[0][0].doc.title).to.be('work');
+			});
+		});
+		
+		describe('Model: update()', function () {
+			beforeEach(function () {
+				server = sinon.fakeServer.create();
+				server.respondWith('PUT', '/tasks/123',
+					[200, {'Content-Type': 'application/json'},
+					'{ "id": 123, "title": "work", "notes": "hard" }']);
+				cb = sinon.spy();
+			});
+			it ('should use PUT method', function () {
+				Task.update(123, {}, cb);
+				expect(server.requests[0].method).to.be('PUT');
+			});
+			it ('should PUT to URL /tasks/123', function () {
+				Task.update(123, {}, cb);
+				expect(server.requests[0].url).to.be('/tasks/123');
+			});
+			it ('should send title & notes as params', function () {
+				Task.update(123, { title: 'work', notes: 'hard' }, cb);
+				server.respond();
+				expect(server.requests[0].method).to.be('PUT');
+				expect(server.requests[0].requestBody).to.contain('title', 'notes', 'work', 'hard');
+				expect(cb.args[0][0].doc.title).to.be('work');
+			});
+			it ('should update from Model instance', function () {
+				var task;
+				server = sinon.fakeServer.create();
+				server.respondWith('POST', '/tasks',
+					[200, {'Content-Type': 'application/json'},
+					'{ "id": 123, "title": "hola", "notes": "hola" }']);
+				Task.create({ title: 'hola'}, function (res) {
+					task = res.doc;
+				});
+				server.respond();
+				server = sinon.fakeServer.create();
+				cb = sinon.spy();
+				task.title = 'hola2';
+				task.update({ notes: 'newNote'}, cb);
+				server.respond('PUT', '/tasks/123',
+					[200, {'Content-Type': 'application/json'},
+					'{ "id": 123, "title": "hola2", "notes": "newNote" }']);
+				expect(server.requests[0].method).to.be('PUT');
+				expect(server.requests[0].requestBody).to.contain('title', 'notes', 'newNote', 'hola2');
+				expect(server.requests[0].url).to.be('/tasks/123');
+				expect(cb.args[0][0].doc.id).to.be(123);
+				expect(cb.args[0][0].doc.notes).to.be('newNote');
+				expect(cb.args[0][0].doc.title).to.be('hola2');
+			});
+		});
+
+		describe('Model: destroy()', function () {
+			beforeEach(function () {
+				server = sinon.fakeServer.create();
+				server.respondWith('DELETE', '/tasks/123',
+					[200, {'Content-Type': 'application/json'},
+					'{ "id": 123 }']);
+				cb = sinon.spy();
+			});
+			it ('should use DELETE method', function () {
+				Task.destroy(123, cb);
+				expect(server.requests[0].method).to.be('DELETE');
+			});
+			it ('should request DELETE to URL /tasks/123', function () {
+				Task.destroy(123, cb);
+				server.respond();
+				expect(server.requests[0].url).to.be('/tasks/123');
+				expect(cb.args[0][0].doc.id).to.be(123);
+			});
+
+			it ('should destroy from Model instance', function () {
+				var task;
+				server = sinon.fakeServer.create();
+				server.respondWith('POST', '/tasks',
+					[200, {'Content-Type': 'application/json'},
+					'{ "id": 123, "title": "hola" }']);
+				Task.create({ title: 'hola'}, function (res) {
+					task = res.doc;
+					
+				});
+				server.respond();
+				server = sinon.fakeServer.create();
+				cb = sinon.spy();
+				task.destroy(cb);
+				server.respond('DELETE', '/tasks/123',
+					[200, {'Content-Type': 'application/json'},
+					'{ "id": 123 }']);
+
+				expect(server.requests[0].method).to.be('DELETE');
+				expect(server.requests[0].url).to.be('/tasks/123');
+				expect(cb.args[0][0].doc.id).to.be(123);
+			});
+		});
+
+		describe('Model: save()', function () {
+			beforeEach(function () {
+				server = sinon.fakeServer.create();
+				server.respondWith('POST', '/tasks',
+					[204, {'Content-Type': 'application/json'},
+					'{ "id": 123, "title": "work", "notes": "hard" }']);
+				cb = sinon.spy();
+			});
+			it ('should use POST method', function () {
+				var task = Task();
+				task.save(cb);
+				expect(server.requests[0].method).to.be('POST');
+			});
+			it ('should POST to URL /tasks', function () {
+				var task = Task();
+				task.save(cb);
+				expect(server.requests[0].url).to.be('/tasks');
+			});
+			it ('should send title and notes params', function () {
+				var task = Task();
+				task.title = 'work';
+				task.notes = 'hard';
+				task.save(cb);
+				server.respond();
+				expect(server.requests[0].requestBody).to.contain('title', 'notes', 'work', 'hard');
+			});
+		});
+	});
 });
