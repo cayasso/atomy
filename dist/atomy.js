@@ -36,7 +36,7 @@
 	}
 
 	// Current version
-	Atomy.VERSION = '0.1.4';
+	Atomy.VERSION = '0.1.5';
 
 	Atomy.enableGlobals = true;
 
@@ -76,12 +76,6 @@
 			proto = klass;
 			klass = null;
 		}
-
-		/**if (className) { //console.log(className);
-				
-
-				console.log(className, parts, ns, namespace);
-		}*/
 
 		initializing = true;
 		prototype = new this();
@@ -160,7 +154,7 @@
 				throw new Error('Class name "' + className + '" already exist, try another name');
 			}
 			instances[className] = __Class__;
-			if (Atomy.enableGlobals && !Atomy.enableTestMode) {	
+			if (Atomy.enableGlobals && !Atomy.enableTestMode) {
 				_.setObject(_className, __Class__);
 			}
 		} else {
@@ -182,7 +176,6 @@
 
 		cid: function () {
 			return _.uniqueId('C');
-			//return letter || 'C' + idCounter++;
 		},
 
 		/**
@@ -312,7 +305,7 @@
 		}
 
 		// barrowed from backbone
-		function trigger (events) {
+		function emit (events) {
 			var event, node, calls, tail, args, all, rest;
 			if (!(calls = this._callbacks)) { return this; }
 			all = calls['all'];
@@ -336,7 +329,7 @@
 		return function fn () {
 			this.on = on;
 			this.off = off;
-			this.trigger = trigger;
+			this.emit = emit;
 			return this;
 		};
 
@@ -433,9 +426,9 @@
 		
 		fakeHTTP: false,
 
-		_getMethod: function (verb) {			
-			if (this.fakeHTTP) {				
-				if (verb === 'update' || verb === 'destroy') { return 'POST'};
+		_getMethod: function (verb) {
+			if (this.fakeHTTP) {
+				if (verb === 'update' || verb === 'destroy') { return 'POST'; }
 			}
 			return this._methods[verb];
 		},
@@ -447,7 +440,7 @@
 		errors: {},
 		init: function () {},
 				
-		find: function (query, fn) { 
+		find: function (query, fn) {
 			var id;
 			if (!_.isHash(query)) {
 				id = (query !== 'all') ? query : null;
@@ -630,11 +623,11 @@
 				o.model._updateFields('', o.data);
 				o.data = diff = o.model._diff(o.model._.data); 
 				o.model._updateFields('update', diff);
-				o.model.trigger('update', o.model, diff);
+				o.model.emit('update', o.model, diff);
 			}
 			if (o.model && this.validate && (errors = o.model._validate())) {
 				var err = { errors: errors, error: true, ok: false };
-				o.model.trigger('error', o.model, errors);
+				o.model.emit('error', o.model, errors);
 				return _.isFunction(fn) && fn.call(this, err) || err;
 			}			
 			return this.sync(o, fn);
@@ -685,7 +678,7 @@
 					if (DB[name][id]) {
 						delete DB[name][id];
 					}
-					model.trigger(action, model);
+					model.emit(action, model);
 				} else {
 					if (this._getMethod(o.action)) {
 						DB[name][model[this.idAttribute]] = model;
@@ -748,7 +741,6 @@
 		 * @return {Object}
 		 */
 		_toModel: function (data) {
-
 			var records = [], i, l;
 			if (_.isArray(data)) {
 				for (i = 0, l = data.length; i < l; i += 1) {
@@ -758,7 +750,6 @@
 				records = this(data)._loadServerData();
 				records._isNew = false;
 			}
-
 			return records;
 		}
 	},
@@ -785,7 +776,7 @@
 		},
 
 		save: function (fn) {
-			return this[this.isNew() ? 'create' : 'update'](fn, null, this.trigger('save', this)) ;
+			return this[this.isNew() ? 'create' : 'update'](fn, null, this.emit('save', this)) ;
 		},
 
 		create: function (fn) {
@@ -829,7 +820,7 @@
 				}
 			}
 			if (!_.isEmpty(changed)) {
-				this.trigger('change', this, before, changed);
+				this.emit('change', this, before, changed);
 			}
 			return this;
 		},
@@ -877,7 +868,7 @@
 		_validate: function () {
 			var error, validate = this._class.validate;
 			if (error = validate && validate.call(this)) {
-				this.trigger('error', this, error);
+				this.emit('error', this, error);
 			}
 			return error;
 		},
@@ -916,7 +907,7 @@
 					if (typeof data[key] !== 'undefined') {
 						this[key] = data[key];
 						if (action === 'update') {
-							this.trigger('change:'+key, this, this[key], this._.data[key]);
+							this.emit('change:'+key, this, this[key], this._.data[key]);
 							this._.data[key] = data[key];
 						}
 					}
@@ -1115,7 +1106,6 @@
 	Atomy.Router = Atomy.Class.extend('Atomy.__Router__', 
     
     {
-
     	_ids: {},
     	_routes: {},
 
@@ -1184,8 +1174,7 @@
               	if (!fragment.indexOf(this.options.root)) {
 	            	fragment = fragment.substr(this.options.root.length);
 	            }
-            
-            
+                        
             console.log('FRAGMENT', fragment, fragment.replace(routeStripper, ''));
       		return fragment.replace(routeStripper, '');
         },
