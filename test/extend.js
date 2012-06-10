@@ -1,3 +1,4 @@
+Atomy.enableTestMode = true;
 describe('Atomy.Class.extend', function () {
 
 	describe('Atomy.Class and Atomy.Model', function () {

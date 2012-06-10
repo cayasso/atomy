@@ -6,7 +6,15 @@
      <link rel="stylesheet" href="vendor/mocha.css">
 </head>
 <body>
+    <style>
+        #myId {
+            height: 10px;
+            width: 600px;
+        }
+
+    </style>
     <div id="mocha"></div>
+    <div id="content">content</div>
     <script src="vendor/jquery-1.7.1.min.js"></script>
     <script src="vendor/superagent.min.js"></script>
     <script src="vendor/expect.js"></script>
@@ -21,11 +29,64 @@
     <script src="extend.js"></script>
     <script src="model.js"></script>
     
-    <script>mocha.run();</script> 
+    <script>/*mocha.run();*/</script> 
+
 
 
     <script>
 
+    var myView = Atomy.View.extend('myView', {
+        tag: 'div',
+        id: 'myId',
+        //className: 'something',
+
+        template: 'Hello {{ name }}!',
+        events: {
+            'click': function () {
+                alert('hoooola');
+            }
+        }
+    });
+
+    var view = myView();
+    var tpl = view.compile();
+
+    console.log(tpl({ name: "Jonathan" }));
+
+    $('#content').html(view.render({ name: "Jonathan" }).el);
+
+/*
+        var Task = Atomy.Model.extend('Task', {
+            setup: function () {
+                
+                this._super();
+                //alert('Si si si');
+
+                //return ['hola', 2, 3];
+            }, 
+
+            init: function () {
+
+                var cls = arguments[0];
+
+                console.log(cls());
+
+            }
+
+        }, {
+
+            setup: function () {
+                
+                return [{ nada: 'nada de nada'}];
+            },
+
+            init: function () {
+                console.log(arguments);
+            }
+        });
+
+        var task = Task({ some: 'data' });
+*/
         /*
 
         describe('Model: find("all")', function () {

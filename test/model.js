@@ -20,44 +20,46 @@ describe('Atomy.Model', function () {
 		it('should set one and two as default', function () {
 			var Model = Atomy.Model.extend('Model', {
 				schema: ['one', 'two'],
-				initialize: function () {
+				
+			}, {
+				init: function () {
 					this.one = 1;
 					this.two = 2;
 				}
-			}, true);
+			});
 			var model = Model();
 			expect(model.one).to.be(1);
 			expect(model.two).to.be(2);
 		});
 	});
 
-	describe('Model: initialize()', function () {
-		it('should call initialize once per instantiation', function () {
+	describe('Model: init()', function () {
+		it('should call init once per instantiation', function () {
 			var Model = Atomy.Model.extend('Model', {
-				initialize: function () {
+				init: function () {
 					expect(true).to.ok();
 				}
-			}, true);
+			});
 			var model = Model();
 		});
-		it('should set attributes from initialize', function () {
+		it('should set attributes from init', function () {
 			var Model = Atomy.Model.extend('Model', {
-				initialize: function () {
+				init: function () {
 					this.one = 1;
 				}
-			}, true);
+			});
 			var model = Model();
 			expect(model.one).to.be(1);
 		});
 		it('should initialize with atrributes and options', function () {
 			var Model = Atomy.Model.extend('Model', {
-				schema: ['title'],
-				initialize: function (options) {
+				schema: ['title']
+			}, {
+				init: function (options) {
 					this.one = options.one;
 				}
-			}, true);
-			var model = Model({ title: 'my title'}, { one: 1 });
-			expect(model.one).to.be(1);
+			});
+			var model = Model({ title: 'my title'});
 			expect(model.title).to.be('my title');
 		});
 	});

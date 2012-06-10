@@ -1,7 +1,7 @@
 {
   "name"          : "atomy",
   "description"   : "Powerful lightweight javascript MV* framework",
-  "version"       : "0.1.4",
+  "version"       : "0.1.5",
   "url"           : "https://github.com/cayasso/atomy",
   "homepage"      : "https://github.com/cayasso/atomy",
   "keywords"      : ["rest", "framework", "mvc", "client", "browser", "application"],

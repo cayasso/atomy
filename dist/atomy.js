@@ -1,5 +1,5 @@
 /*!
- * atomy - v0.1.4 -  3/22/2012
+ * atomy - v0.1.5 -  6/10/2012
  *
  * https://github.com/cayasso/atomy
  * Copyright (c) 2012 Jonathan Brumley <cayasso@gmail.com>
@@ -7,7 +7,7 @@
  * Credits: Jonathan Brumley, John Resig, Jeremy Ashkenas
  */
 
-(function (window, document, undefined) {
+(function (document, $, undefined) {
 
 	"use strict";
 	
@@ -22,24 +22,13 @@
 		slice = Array.prototype.slice,
 		toString = Object.prototype.toString,
 		hasOwn = Object.prototype.hasOwnProperty,
-		idCounter = 0,
 
 		// Create quick reference variables for speed access to core prototypes.
 		// Function test
 		fnTest = /xyz/.test(function () {
 			xyz;
-		}) ? /\b_super\b/ : /.*/,
-
-		/**
-		* Simple JavaScript Inheritance adapted from John Resig
-		* http://ejohn.org/blog/simple-javascript-inheritance/
-		* because its a very clean and nice code for inheritance
-		* license MIT Licensed.
-		* class This is the Base Class implementation, its just a class constructor,
-		* its the base of the entire model app.
-		*/
-		Class = function () {};
-
+		}) ? /\b_super\b/ : /.*/;
+			
 	if (typeof exports !== 'undefined') {
 		Atomy = exports;
 	} else {
@@ -49,17 +38,36 @@
 	// Current version
 	Atomy.VERSION = '0.1.4';
 
-	// Set underscore
-	var _ = root._, request = superagent;
+	Atomy.enableGlobals = true;
+
+	Atomy.enableTestMode = false;
+
+	Atomy.ajaxProvider = 'superagent';
+
+	// Set underscore and superagent
+	var _ = root._, superagent = root.superagent;
 	if (!_ && (typeof require !== 'undefined')) { _ = require('underscore'); }
-	if (!request && (typeof require !== 'undefined')) { request = require('superagent'); }
+	if (!superagent && (typeof require !== 'undefined')) { superagent = require('superagent'); }
+
+	/**
+	* Simple JavaScript Inheritance adapted from John Resig
+	* http://ejohn.org/blog/simple-javascript-inheritance/
+	* because its a very clean and nice code for inheritance
+	* license MIT Licensed.
+	* class This is the Base Class implementation, its just a class constructor,
+	* its the base of the entire model app.
+	*/
+	var Class = function () {};
 
 	Class.instances = {};
-	Class.extend = function extend(className, klass, proto) {
-		var prototype,
-			_superclass = this,
-			_super = this.prototype;
-		if (typeof className !== 'string') {
+
+	Class.setup = function () {
+		return arguments.length && arguments || [];
+	};
+
+	Class.extend = function extend (className, klass, proto) {
+		var prototype, args, _superclass = this, _super = this.prototype, ns, namespace, parts;
+		if (!_.isString(className)) {
 			proto = klass;
 			klass = className;
 			className = null;
@@ -68,74 +76,113 @@
 			proto = klass;
 			klass = null;
 		}
+
+		/**if (className) { //console.log(className);
+				
+
+				console.log(className, parts, ns, namespace);
+		}*/
+
 		initializing = true;
 		prototype = new this();
 		initializing = false;
-		function setProps(props, instance, sup) {
-			var name;
-			for (name in props) {
-				instance[name] = typeof props[name] === 'function' &&
-				typeof sup[name] === 'function' &&
-				fnTest.test(props[name]) ?
-				(function (name, fn) {
+		function setProps(props, to, obj) {
+			var key;
+			for (key in props) {
+				to[key] = _.isFunction(props[key]) &&
+				_.isFunction(obj[key]) &&
+				fnTest.test(props[key]) ?
+				(function (key, fn) {
 					return function () {
 						var tmp = this._super, ret;
-						this._super = sup[name];
+						this._super = obj[key];
 						ret = fn.apply(this, arguments);
 						this._super = tmp;
 						return ret;
 					};
-				})(name, props[name]) : props[name];
+				})(key, props[key]) : props[key];
 			}
-			return instance;
 		}
-		prototype = setProps(proto, prototype, _super);
-		function Class(args) {
-			if (this instanceof Class) {
-				// All construction is actually done in the init method
-				if (!initializing && typeof this.init === 'function') {
-					this._className = className;
+		setProps(proto || {}, prototype, _super);
+		function __Class__ (args) {
+			if (this instanceof __Class__) {
+				// All construction is actually done in the setup method
+				if (!initializing && _.isFunction(this.setup)) {
 					this._class = this.constructor;
+					this._className = className;
 					this.constructor._name = className.toLowerCase();
-					return this.init.apply(this, (args && Class) ? args : arguments);
+					return this.instance.apply(this, (args && _.isArguments(args) && __Class__) ? args : arguments);
 				}
 			} else {
-				return new Class(arguments);
+				return new __Class__(arguments);
 			}
 		}
+
 		// Populate our constructed prototype object
-		Class.prototype = prototype;
-		Class.prototype.constructor = Class;
-		Class.prototype.supperclass = _superclass;
+		__Class__.prototype = prototype;
+		__Class__.prototype.constructor = __Class__;
+		__Class__.prototype.supperclass = _superclass;
+		__Class__.prototype.instance = function () {
+			var args;
+			if (this.setup) {
+				args = this.setup.apply(this, arguments);
+			}
+			if (this.init) {
+				this.init.apply(this, _.isArray(args) ? args : arguments);
+			}
+			return this;
+		};
 
 		for (var n in this) {
 			if (hasOwn.call(this, n) && n !== 'prototype') {
-				Class[n] = this[n];
+				__Class__[n] = this[n];
 			}
 		}
-
-		Class = setProps(klass, Class, _superclass);
+		setProps(klass, __Class__, _superclass);
 
 		// And make this class extendable
-		Class.extend = extend;
+		__Class__.extend = extend;
 
 		if (className) {
-			Class.className = className;
-			Class._name = className.toLowerCase();
+				var _className = className;
+				parts = className.split(/\./);
+				className = parts.pop();
+				
+				/*ns = _.getObject(parts.join('.'), true);
+				namespace = ns;*/
+			
+			//__Class__.ns = namespace;
+			__Class__.className = className;
+			__Class__._name = className.toLowerCase();
+
+
+			if (instances[className] && !Atomy.enableTestMode) {
+				throw new Error('Class name "' + className + '" already exist, try another name');
+			}
+			instances[className] = __Class__;
+			if (Atomy.enableGlobals && !Atomy.enableTestMode) {	
+				_.setObject(_className, __Class__);
+			}
+		} else {
+			throw new Error('Class name is required please provide one');
+		}
+		(_superclass.extended) && _superclass.extended(Class);
+		args = __Class__.setup.apply(__Class__, [_superclass].concat(arguments));
+		if (__Class__.init) {
+			__Class__.init.apply(__Class__, args || [_superclass].concat(arguments));
 		}
 
-		(_superclass.extended) && _superclass.extended(Class);
-		instances[className.toLowerCase()] = Class;
 		// Return the class
-		return Class;
+		return __Class__;
 	};
-
+	
 	Atomy.Class = Class;
 
 	_.mixin({
 
-		cid: function (letter) {
-			return letter || 'C' + idCounter++;
+		cid: function () {
+			return _.uniqueId('C');
+			//return letter || 'C' + idCounter++;
 		},
 
 		/**
@@ -147,7 +194,8 @@
 		*/
 		isMatch: function (obj, query) {
 			var count = 0, matched = 0;
-			this.each(query, function (q, i) {
+			
+			function fn(q, i) {
 				var o = obj[i];
 				count += 1;
 				if (_.isNumber(o)) {
@@ -157,7 +205,8 @@
 				} else if (o == q) {
 					matched += 1;
 				}
-			});
+			}
+			this.each(query, fn);
 			return (matched === count);
 		},
 
@@ -192,6 +241,36 @@
 			var c = new Clone();
 			c.constructor = Clone;
 			return c;
+		},
+
+		setObject: function(name, value, context) {
+			var parts = name.split('.'), prop = parts.pop(),
+				obj = _.getObject( parts, true, context );
+			return obj && typeof obj === 'object' && prop ? (obj[prop] = value) : undefined;
+		},
+
+		getObject: function( parts, create, obj ) {
+			var p;
+			if (_.isString(parts) ) {
+				parts = parts.split('.');
+			}
+			if (!_.isBoolean(create)) {
+				obj = create;
+				create = undefined;
+			}
+			obj = obj || root;
+			while ( obj && parts.length ) {
+				p = parts.shift();
+				if ( obj[p] === undefined && create ) {
+					obj[p] = {};
+				}
+				obj = obj[p];
+			}
+			return obj;
+		},
+
+		exists: function () {
+			return _.getObject(name, context) !== undefined;
 		}
 	});
 
@@ -254,7 +333,7 @@
 			return this;
 		}
 
-		return function () {
+		return function fn () {
 			this.on = on;
 			this.off = off;
 			this.trigger = trigger;
@@ -335,7 +414,7 @@
 
 	})();
 
-	Atomy.Model = Atomy.Class.extend('Model',
+	Atomy.Model = Atomy.Class.extend('Atomy.__Model__',
 
 	/**
 	* Static methods
@@ -366,7 +445,7 @@
 		connection: {},
 		collection: {},
 		errors: {},
-		initialize: function () {},
+		init: function () {},
 				
 		find: function (query, fn) { 
 			var id;
@@ -431,7 +510,7 @@
 		 * @return {Object}
 		 */
 		update: function (id, data, fn, model) {
-			var key, val; model = this.model || null;
+			var key, val; model = model || null;
 			if (_.isHash(id)) {
 				fn = data;
 				data = id;
@@ -440,14 +519,11 @@
 			if (model) {
 				for (key in data) {
 					val = data[key];
-					if (model._.data) {
+					if (typeof model._.data !== 'undefined') {
 						(model._.data[key] !== val) && (data[key] = val);
 					}
 				}
 			}
-
-			console.log('UPDATE ====> ', this.model);
-
 
 			return this._crud({
 				data: data,
@@ -476,7 +552,7 @@
 
 		sync: function (o, fn) {
 			return this.request({
-				url: this._getURL(o.id),
+				url: this._getURL(o.id, o),
 				type: this._getMethod(o.action),
 				data: !this.fakeHTTP ? (o.data || {}) : _.extend(o.data, {_method: this._getMethod(o.action)}, true),			
 				success: _.curry(this._callback, this, o, fn),		
@@ -488,19 +564,19 @@
 		request: function (req, fakeJSON, action) {
 			var self = this,
 				provider = ({ 
-					zepto: '$', 
+					zepto: '$',
 					jquery: '$', 
 					superagent: 'superagent'
 				})[this.ajaxProvider];
 			if (!provider) { throw new Error('Atomy.request: Invalid Ajax provider'); }
 			return {
 				'superagent': function () {
-					return request(req.type, req.url)
+					return superagent(req.type, req.url)
 					.type( !fakeJSON ? req.dataType : 'form-data')
 					.send(req.data).end(req.success);
 				},
 				'$': function () {					
-					req.beforeSend = function(xhr) {					
+					req.beforeSend = function (xhr) {					
 						fakeJSON && xhr.setRequestHeader('X-HTTP-Method-Override', self._methods[action]);
 					}
 					return $.ajax(req);
@@ -510,6 +586,26 @@
 
 		records: function () {
 			return DB[this._name];
+		},
+
+		toJSON: function () {
+			var records = this.records(), result = {};
+			if (records) {
+				_.each(records, function (record, id) {
+					result[id] = record.toJSON();
+				})
+			}
+			return result;
+		},
+
+		toArray: function () {
+			var records = this.records(), result = [];
+			if (records) {
+				_.each(records, function (record) {
+					result.push(record.toJSON());
+				})
+			}
+			return result;
 		},
 
 		clearRecords: function () {
@@ -552,15 +648,15 @@
 		 * @param {Function} fn The callback function to execute
 		 * @return {Mixed}
 		 */
-		_callback: function (o, fn, res, text, xhr) {  console.log('_CALLBACK', res);
+		_callback: function (o, fn, res, text, xhr) {
 			var response = {},
 				isSupA = (this.ajaxProvider === 'superagent'),
-				hasBody = (isSupA && res && res.body),
+				hasBody = (isSupA && res && (typeof res.body !== 'undefined')),
 				isError = (text === 'error'),
-				_res = hasBody ? res.body : res;			
-			o.model && hasBody && (response = res);
-			response.doc = !isError ? (o.model ? _.extend(o.model, _res) : this._toModel(_res)) : {};
-			if (hasBody) { delete res.body; }		
+				doc = hasBody ? res.body : res;	
+			(hasBody) && (response = res);
+			response.doc = !isError ? (o.model ? _.extend(o.model, doc) : this._toModel(doc)) : {};
+			if (hasBody) { delete res.body; }
 			this._sync(o.action, response.doc, o);
 			return _.isFunction(fn) && 
 			fn.call(this, this._status(response, isSupA || (isError ? xhr.status : res.status))) || response;
@@ -617,7 +713,7 @@
 		    res.clientError = 4 == type;
 		    res.serverError = 5 == type;
 		    res.error = 4 == type || 5 == type;
-		    res.accepted = 202 == status;
+		    res.accepted = 200 == status;
 		    res.noContent = 204 == status || 1223 == status;
 		    res.badRequest = 400 == status;
 		    res.unauthorized = 401 == status;
@@ -636,12 +732,12 @@
 			return [
 				this.connection.host || this._getHost(),
 				this.connection.key, id && ('/' + id) || '',
-				_.isUndefined(this.connection.ext) ? '' : this.connection.ext
+				_.isUndefined(this.connection.ext) ? '' : '.'+this.connection.ext
 			].join('');
 		},
 
 		_getHost: function () {
-			return location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '')+'/';
+			return [location.protocol,'//',location.hostname,(location.port ? ':'+location.port: ''),'/'].join('');
 		},
 
 		/**
@@ -652,6 +748,7 @@
 		 * @return {Object}
 		 */
 		_toModel: function (data) {
+
 			var records = [], i, l;
 			if (_.isArray(data)) {
 				for (i = 0, l = data.length; i < l; i += 1) {
@@ -661,6 +758,7 @@
 				records = this(data)._loadServerData();
 				records._isNew = false;
 			}
+
 			return records;
 		}
 	},
@@ -669,18 +767,20 @@
 	 * Prototype methods
 	 */
 	{
-		init: function (data, options) {
+		setup: function (data, options) {
 			var id = this.idAttribute = this._class.idAttribute;
 			this._escapedFields = {};			
 			(this._class.schema.indexOf(id) === -1) && this._class.schema.push(id);
 			this._ = {data:{}};
 			this.connection = this._class.connection;
 			this._isNew = true;
-			this._name = this._class._name;
-			this._class.initialize.call(this, options);
+			this._name = this._class._name;			
 			data && this._updateFields('create', data);
 			(!this[id]) && (this[id] = _.cid());
-			this._class.model = this;					
+			return arguments;
+		},
+
+		init: function () {
 			return this;
 		},
 
@@ -707,6 +807,11 @@
 			return this._class.destroy(this[this.idAttribute], fn, this);
 		},
 
+		set: function (data) {
+			this._updateFields('update', data);
+			return this;
+		},
+
 		clone: function () {
 			return _.clone(this);
 		},
@@ -716,7 +821,7 @@
 			if (schema) {
 				for (var i = 0, len = schema.length; i < len; i++) {
 					key = schema[i];
-					if (this[key] !== undefined) {
+					if (typeof this[key] !== 'undefined') {
 						before[key] = this[key];
 						changed[key] = undefined;
 						delete this[key];
@@ -754,7 +859,9 @@
 			obj || (obj = {});
 			for (i = 0, len = schema.length; i < len; i++) {
 				key = schema[i];
-				obj[key] = this[key];
+				if (key !== 'undefined' || typeof this[key] !== 'undefined') {
+					obj[key] = this[key];
+				}
 			}
 			return obj;
 		},
@@ -786,7 +893,7 @@
 			var schema = this._class.schema, i, key, len = schema.length;
 			for (i = 0, len = schema.length; i < len; i++) {
 				key = schema[i];
-				if (this[key] !== undefined && !_.isEqual(this[key], this._.data[key])) {
+				if (typeof this[key] !== 'undefined' && !_.isEqual(this[key], this._.data[key])) {
 					this._.data[key] = this[key];
 				}
 			}
@@ -806,7 +913,7 @@
 			if (schema && data) {
 				for (i = 0; i < len; i++) {
 					key = schema[i];
-					if (data[key] !== undefined) {
+					if (typeof data[key] !== 'undefined') {
 						this[key] = data[key];
 						if (action === 'update') {
 							this.trigger('change:'+key, this, this[key], this._.data[key]);
@@ -819,7 +926,7 @@
 		},
 
 		_diff: function (oldObj) {
-			if (!oldObj) { return null; }
+			if (typeof oldObj === 'undefined') { return null; }
 			var schema = this._class.schema, i, k, len, diff = {};			
 			for (i = 0, len = schema.length; i < len; i++) {
 				k = schema[i];
@@ -849,130 +956,238 @@
 		}
 	);
 	
-	Atomy.View = Atomy.Class.extend('View', 
+	// Cached regex to split keys for `delegate`.
+  	var eventMatcherReg = /^(\S+)\s*(.*)$/;
+
+	Atomy.View = Atomy.Class.extend('Atomy.__View__', 
 
 	/**
      * Static methods
      */
-	{
+	{				
+		template: '',
+
 		tag: 'div',
 
-		className: '',
+		events: {},
 
-		template: _.template(),
+		interpolate: null,
 
-		events: {
-			'.check': function () {
+		$: function(selector) {
+	      return this.$el.find(selector);
+	    },
 
+		setup: function (options, params) {
+
+			var el = options.el;
+			var model = options.model;
+			var attr = options.attr;
+			var tag, model, html = '';
+
+			if (!el instanceof $) {
+				attr = el;
+				el = null; 
 			}
-		}
 
-	}, 
+			if (el instanceof Atomy.Model) {
+				model = el;
+				el = null;
+				attr = {};
+			}
 
+			if (attr instanceof Atomy.Model) {
+				model = attr;
+				attr = {};
+			}
 
+			el = el || this.el;
+			attr = attr || {};
 
-	/*
+			if (_.isString(el)) {
+				tag = el;
+				el = null;
+			}
 
-		var html = $(#template).html();
+			if (attr.html) {
+				html = attr.html;
+				delete attr.html;
+			}
+			(this.id && !attr.id) && (attr.id = this.id);
 
-		var template = _.template(html);
+			this.attr = attr;
+			this.tag = tag || this.tag;
 
-		var elem = myView('.el').render(this.model);
+			el = (!el) ? this.create(this.tag, html) : el;
+			el  = this.setAttr(el, attr);
 
-		$('#dom').html(elem);
+			this.setElement(el, false);
+						
+			if (_.isArray(model)) {
+				this.models = model;
+			} else {
+				this.model = model || this.model || {};
+			}
 
-	*/
+			this.cid = _.uniqueId('view_');
 
-
-	/**
-     * Prototype methods
-     */
-	{
-		/**
-			var Model = { name: 'Tom' }
-			View('').render(model);
-
-		 */
-
-		init: function (model) {
-
+			if (this.interpolate) {
+				_.templateSettings = { interpolate: this.interpolate };
+			}
+			this.elements && this.refreshElements();
+			this.delegateEvents();
+			return arguments || [];
 		},
 
-		render: function () {
+		render: function () {			
+			return this;
+		},
 
+		remove: function() {
+	      	this.$el.remove();
+	      	return this;
+	    },
+
+		create: function (tag, html) {
+			var el = document.createElement(tag);	
+			html && $(el).html(html);			
+			return el;
+		},
+
+		setAttr: function (el, attr) {
+			attr && _.isHash(attr) && $(el).attr(attr);
+			return el;
+		},
+
+		refreshElements: function () {
+			_.each(this.elements, function (val, key) {
+				if (_.isString(key)) {
+					this[val] = this.$(key);
+				}
+			}, this);
+		},
+
+		setElement: function (el, bind) {
+			if (this.$el) this.undelegateEvents();
+			this.$el = (el instanceof $) ? el : $(el);
+			this.el = this.$el[0];
+			if (bind !== false) this.delegateEvents();
+			return this;
+		},
+
+		delegateEvents: function (event) { 
+			var method, fn, self = this;
+			this.undelegateEvents();
+			for (var key in this.events) { 
+				fn = this.events[key]; 
+				if (_.isString(fn)) { 		
+					if (!(fn = this[fn])) {
+						throw new Error('Method "' + fn + '" does not exist');
+					}
+				}
+				if (_.isFunction(fn)) { 
+					var match = key.match(eventMatcherReg);
+					var ev = match[1], selector = match[2];
+					fn = _.bind(fn, this);
+					ev += '.delegateEvents' + this.cid;				
+					if (selector === '') { 
+					  this.$el.on(ev, fn);
+					} else { 
+					  this.$el.delegate(selector, ev, fn);
+					}
+				}
+			}
+            return this;
+        },
+
+		undelegateEvents: function () { 
+			this.$el.off('.delegateEvents' + this.cid);
 		}
-	})
+	});
 
 	var isIE = /msie [\w.]+/,
+		routeStripper = /^[#\/]/,
     	historyStatus = false,
     	docMode = document.documentMode,
     	oldIE = (isIE.exec(navigator.userAgent.toLowerCase()) && (!docMode || docMode <= 7)),
-    	loc = window.location,
+    	loc = root.location,
     	oldHash = '';
 
-	Atomy.Router = Atomy.Class.extend('Router', 
-
-    /**
-     * Static methods
-     */
+	Atomy.Router = Atomy.Class.extend('Atomy.__Router__', 
+    
     {
-        options: {
+
+    	_ids: {},
+    	_routes: {},
+
+    	defaults: {
             root    : '',
             interval: 50,
             history : false,
+            pushState: false,
             fallback: true,
-            hashbang: true,
-            listen  : true
+            hashbang: false,
+            listen  : true,
+            ignoreInitialHash: false
         },
-        
-        routes: {}
-    }, 
 
-    /**
-     * Prototype methods
-     */
-    {
-        init: function (o) {
+        setup: function (o) {
             // TO DO => Fix extend
-            o = _.extend(Atomy.Router.options, this._class.options);
-            this._ids = {};         
-            this._routes = {};    
-            this.map(this._class.routes);
+            o = o || this.options || {};
+            o = this.options = _.defaults(this.defaults, o);            
+            this.map(this.routes);
             this._hashbang = o.hashbang;
             this._fallback = o.fallback;
-            this._hasPushState = !!(window.history && window.history.pushState);                
-            this._hasPushState = false;
-            o.listen && this.listen();                     
+            this._hasPushState = !!(root.history && root.history.pushState); 
+            this._event = null;              
+            o.listen && this.listen();
+            return arguments;                 
         },
 
         /**
          * Start listening for hash changes or history
          * @return {[type]}
          */
-        listen: function () {
+        listen: function () { 
             var self = this,                                  
-                fn = function (e) {              
+                fn = function (e) { 
                     var hash = self.fragment();
                     if (hash !== oldHash) {
+                    	self._event = e;
+
                         self._check(hash);
                         oldHash = hash;
                     }
                 };
-            if (this._hasPushState) {                    
-                window.onpopstate = fn;
+            if (this.options.pushState && this._hasPushState) {   
+                root.onpopstate = fn;
             } else {
-                if (this._fallback) {
-                    if ('onhashchange' in window && !oldIE) {
-                        window.onhashchange = fn;
+                if (this._fallback) { 
+                    if ('onhashchange' in root && !oldIE) {             	
+                        root.onhashchange = fn; 
                     } else {
-                        this._intervalTimer = setInterval(fn, this._class.options.interval);
+                        this._intervalTimer = setInterval(fn, this.options.interval);
                     }
                 }
             }
+
+            if (!this.options.ignoreInitialHash) {
+            	this._check(this.fragment());
+        	}
         },
 
         fragment: function (fragment) {
-            return this._hasPushState ? loc.pathname : this.hash();
+            if (!fragment) {
+            	return fragment = (this.options.pushState && this._hasPushState) ? loc.pathname : this.hash();
+            }
+
+            // need to fix
+              	if (!fragment.indexOf(this.options.root)) {
+	            	fragment = fragment.substr(this.options.root.length);
+	            }
+            
+            
+            console.log('FRAGMENT', fragment, fragment.replace(routeStripper, ''));
+      		return fragment.replace(routeStripper, '');
         },
 
         hash: function(override) {
@@ -986,7 +1201,9 @@
                 for (var r in route) {                        
                     this.map(r, route[r]);
                 }
-            } else {                    
+            } else {
+            	if (!route) return this;
+
                 var p = route.split(' ');
                 this._routes[p[0]] = fn;
                 if (p[1]) { 
@@ -998,17 +1215,21 @@
 
         navigate: function (fragment, options) {
             options === true && (options = { trigger: true });
-            this._pushState(fragment);                
-            options.trigger && this._check(fragment);
+            this._pushState(fragment);            
+            options && options.trigger && this._check(fragment);
             return this;
         },
         
+        redirect: function (page) {
+        	window.location = page;
+        },
+
         _pushState: function (fragment) {
-            if (this._hasPushState) {
+            if (this.options.pushState && this._hasPushState) {
                 history.pushState(null, null, fragment);
             } else {
                 if (this._fallback) {
-                    loc.hash = '#' + (this._hashbang ? '!' : '') + fragment;
+                    loc.hash = ['#', (this._hashbang ? '!' : ''), fragment].join('');
                 }
             }
         },
@@ -1016,8 +1237,10 @@
         _check: function (fragment) {
             var path, fn;
             for (path in this._routes) {
-                fn = this._routes[path], _.isString(fn) && (fn = this._class[fn]);
-                if (this._run(path, fragment, fn)) { break; }
+            	if (hasOwn.call(this._routes, path)) {
+                	fn = this._routes[path], _.isString(fn) && (fn = this[fn]);
+                	if (this._run(path, fragment, fn)) {   return; }
+            	}
             }
         },
 
@@ -1033,7 +1256,7 @@
         _run: function (path, hash, fn) {
         	var names = [], params, path = this._regex(path, names).exec(hash);
             if (fn && (params = (path) ? this._params(names, path) : null)) {
-                ( _.isString(fn) && this._class[fn] || fn).call(this, params.obj, params);
+                ( _.isString(fn) && this[fn] || fn).call(this, params.obj, params);
                 return true;
             }
             return false;
@@ -1055,11 +1278,10 @@
             .replace(/(\/)?(\.)?:(\w+)(?:(\(.*?\)))?(\?)?/g, function(_, slash, format, key, capture, optional){
                 keys.push({ name: key, optional: !! optional });
                 slash = slash || '';
-                return '' +
-                (optional ? '' : slash) + '(?:' +
-                (optional ? slash : '') +
-                (format || '') + (capture || (format && '([^/.]+?)' || '([^/]+?)')) + ')' +
-                (optional || '');
+                return [(optional ? '' : slash), '(?:',
+                (optional ? slash : ''),
+                (format || ''), (capture || (format && '([^/.]+?)' || '([^/]+?)')), ')',
+                (optional || '')].join('');
             })
             .replace(/([\/.])/g, '\\$1')
             .replace(/\*/g, '(.*)');
@@ -1074,18 +1296,21 @@
          * @return {Object}
          */
         _params: function (names, values) {
-            var i, obj = { path: values[0], names: names, values: values, obj: {} };
-            for (i = 1, len = values.length; i < len; i++) {
-                obj.obj[names[i-1].name] = values[i];
-            }
+            var i, len, obj = { path: values[0], names: names, values: values, obj: {} };            
+            if (values) {
+            	for (i = 1, len = values.length; i < len; i++) {
+                	obj.obj[names[i-1].name] = values[i];
+            	}
+        	}
             return obj;
         }     
     });
 
 	Atomy.List.call(Atomy.Model);
 	Atomy.Events.call(Atomy.Model);
+	Atomy.Events.call(Atomy.View.prototype);
 	Atomy.Events.call(Atomy.Model.prototype);
 
 	return Atomy;
 
-}).call(this, window, document);
+}).call(this, document, window.jQuery || window.Zepto || undefined);
