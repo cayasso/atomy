@@ -8,45 +8,45 @@ describe('Atomy.Events', function () {
         expect(obj.on).to.be.a('function');
         expect(obj.off).to.be.ok();
         expect(obj.off).to.be.a('function');
-        expect(obj.trigger).to.be.ok();
-        expect(obj.trigger).to.be.a('function');
+        expect(obj.emit).to.be.ok();
+        expect(obj.emit).to.be.a('function');
       });
     });
 
-    describe('Events: on and trigger', function () {
+    describe('Events: on and emit', function () {
       it('should increment counter by one then by five', function () {
         var obj = { counter: 0 };
         Atomy.Events.call(obj);
         obj.on('event', function () { obj.counter += 1; })
-        .trigger('event');
+        .emit('event');
         expect(obj.counter).to.be(1);
-        obj.trigger('event')
-        .trigger('event')
-        .trigger('event')
-        .trigger('event');
+        obj.emit('event')
+        .emit('event')
+        .emit('event')
+        .emit('event');
         expect(obj.counter).to.be(5);
       });
     });
 
-    describe('Events: on and trigger multiple events', function () {
+    describe('Events: on and emit multiple events', function () {
       it('should increment counter each time', function () {
         var obj = { counter: 0 };
         Atomy.Events.call(obj);
         obj.on('a b c', function () { obj.counter += 1; })
-        .trigger('a');
+        .emit('a');
         expect(obj.counter).to.be(1);
-        obj.trigger('a b');
+        obj.emit('a b');
         expect(obj.counter).to.be(3);
-        obj.trigger('c');
+        obj.emit('c');
         expect(obj.counter).to.be(4);
         obj.off('a c')
-        .trigger('a b c');
+        .emit('a b c');
         expect(obj.counter).to.be(5);
       });
     });
 
-    describe('Events: trigger all for each event', function () {
-        it('should trigger events a and b', function () {
+    describe('Events: emit all for each event', function () {
+        it('should emit events a and b', function () {
             var a, b, obj = { counter: 0 };
             Atomy.Events.call(obj);
             obj.on('all', function (event) {
@@ -54,7 +54,7 @@ describe('Atomy.Events', function () {
                 if (event == 'a') a = true;
                 if (event == 'b') b = true;
             });
-            obj.trigger('a b');
+            obj.emit('a b');
             expect(a).to.be.ok();
             expect(b).to.be.ok();
             expect(obj.counter).to.be(2);
@@ -62,26 +62,26 @@ describe('Atomy.Events', function () {
     });
 
     describe('Events: bind with provided context', function () {
-        it('should trigger assertTrue', function () {
+        it('should emit assertTrue', function () {
             var obj = {}, TestClass = function () { return this; };
             TestClass.prototype.assertTrue = function (ok) {
                 expect(ok).to.be.ok();
             };
             Atomy.Events.call(obj);
             obj.on('event', function () { this.assertTrue(true); }, new TestClass())
-            .trigger('event');
+            .emit('event');
         });
     });
 
-    describe('Events: nested trigger with unbind', function () {
+    describe('Events: nested emit with unbind', function () {
         it('should increment counter three times', function () {
             var obj = { counter: 0 },
-                callbackA = function () { obj.counter++; obj.off('event', callbackA).trigger('event'); },
+                callbackA = function () { obj.counter++; obj.off('event', callbackA).emit('event'); },
                 callbackB = function () { obj.counter++; };
             Atomy.Events.call(obj);
             obj.on('event', callbackA)
             .on('event', callbackB)
-            .trigger('event');
+            .emit('event');
             expect(obj.counter).to.be(3);
         });
     });
@@ -93,7 +93,7 @@ describe('Atomy.Events', function () {
         Atomy.Events.call(obj);
         it('should not alter callback list on bind', function () {
             obj.on('event', function () { obj.on('event', callback).on('all', callback); })
-            .trigger('event');
+            .emit('event');
             expect(counter).to.be(0);
             obj.off();
         });
@@ -101,19 +101,19 @@ describe('Atomy.Events', function () {
             obj.on('event', function () { obj.off('event', callback).off('all', callback); })
             .on('event', callback)
             .on('all', callback)
-            .trigger('event');
+            .emit('event');
             expect(counter).to.be(2);
         });
     });
 
     describe('Events: off', function () {
-        it('should not trigger second event', function () {
+        it('should not emit second event', function () {
             var obj = { counter: 0 };
             Atomy.Events.call(obj);
             obj.on('event', function (event) { obj.counter++; })
-            .trigger('event')
+            .emit('event')
             .off('event')
-            .trigger('event');
+            .emit('event');
             expect(obj.counter).to.be(1);
         });
         it('should only unbind callbackA', function () {
@@ -123,9 +123,9 @@ describe('Atomy.Events', function () {
             var callbackB = function () { obj.counterB++; };
             obj.on('event', callbackA)
             .on('event', callbackB)
-            .trigger('event')
+            .emit('event')
             .off('event', callbackA)
-            .trigger('event');
+            .emit('event');
             expect(obj.counterA).to.be(1);
             expect(obj.counterB).to.be(2);
         });
@@ -134,9 +134,9 @@ describe('Atomy.Events', function () {
 				callback = function () { obj.counter++; obj.off('event', callback); };
             Atomy.Events.call(obj);
             obj.on('event', callback)
-            .trigger('event')
-            .trigger('event')
-            .trigger('event');
+            .emit('event')
+            .emit('event')
+            .emit('event');
             expect(obj.counter).to.be(1);
         });
         it('should bind and unbind callbacks from with in themselves', function () {
@@ -146,9 +146,9 @@ describe('Atomy.Events', function () {
             Atomy.Events.call(obj);
             obj.on('event', callbackA)
             .on('event', callbackB)
-            .trigger('event')
-            .trigger('event')
-            .trigger('event');
+            .emit('event')
+            .emit('event')
+            .emit('event');
             expect(obj.counterA).to.be(1);
             expect(obj.counterB).to.be(1);
         });
